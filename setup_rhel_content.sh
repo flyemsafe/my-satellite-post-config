@@ -1,35 +1,28 @@
+#!/bin/bash
 
+## Sets up Red Hat Enterprise Linux repository sets, create a rhel content view and associated activation key
 
-### Variables
-
-```
+# User provided variables
 ORG=ACME
-ORG_ID=$(hammer --csv organization list --search $ORG | grep -o [0-9])
-```
-
-## Red Hat Enterprise Linux
-
-
-* Set Environment Variables
-
-```
 ARCH="x86_64"
-TYPE="os"
 LC_ENVS="Testing Production"
-ORG=ACME
-SAT_VER="6.4"
+SAT_VER="6.5"
+ANSIBLE_VER="2.6"
 CV_PRODUCT="rhel"
-ROLE="${CV_PRODUCT}-7Server"
+releasever="7Server"
+CV_DESCRIPTION='"RHEL Server 7 Core Build Content View"'
+
+# Required Variables and Functions
+TYPE="os"
 CV="cv-${TYPE}-${ROLE}"
-PRODUCT='"Red Hat Enterprise Linux Server"'
+ROLE=$(echo ${CV_PRODUCT}-${releasever} | tr '[:upper:]' '[:lower:]')
+ORG_ID=$(hammer --csv organization list --search $ORG | grep -o [0-9])
 enabled_products=$(mktemp)
 REPOSITORY_SETS=$(mktemp)
-releasever="7Server"
-```
+source ./hammer_helper_functions.sh
 
-* Enable Repositories Sets
-
-```
+# Enable Repositories Sets
+PRODUCT='"Red Hat Enterprise Linux Server"'
 cat > $REPOSITORY_SETS <<EOF
 "Red Hat Enterprise Linux 7 Server (Kickstart)"
 "Red Hat Enterprise Linux 7 Server (RPMs)"
@@ -38,9 +31,10 @@ cat > $REPOSITORY_SETS <<EOF
 "Red Hat Satellite Tools ${SAT_VER} (for RHEL 7 Server) (RPMs)"
 EOF
 
-
+# Get list of products already enabled
 echo hammer --output json repository-set list --enabled=true --product "$PRODUCT" --organization $ORG|sh | awk '/Name/ {print $0}' > $enabled_products
 
+# Enabled products not already enabled
 while read product;
 do
   grep "$product" $enabled_products >/dev/null
@@ -50,23 +44,15 @@ do
   fi
 done<$REPOSITORY_SETS
 
-```
-
-### Create content view cv-os-rhel-7Server
-
-```
-DESCRIPTION='"RHEL Server 7 Core Build Content View"'
+# Create content view cv-os-rhel-7server
 create_content_view
-```
 
-### Add software repositories to cv-os-rhel-7Server
-
-```
+# Add software repositories to cv-os-rhel-7Server
 REPOS="$(mktemp)"
 cat > $REPOS << EOF
 'Red Hat Enterprise Linux 7 Server Kickstart x86_64 7Server'
 'Red Hat Enterprise Linux 7 Server RPMs x86_64 7Server'
-'Red Hat Satellite Tools 6.3 for RHEL 7 Server RPMs x86_64'
+'Red Hat Satellite Tools ${SAT_VER} for RHEL 7 Server RPMs x86_64'
 'Red Hat Enterprise Linux 7 Server - RH Common RPMs x86_64 7Server'
 EOF
 
@@ -75,11 +61,8 @@ do
  echo hammer content-view add-repository --name "${CV}" --organization $ORG \
     --product "${PRODUCT}" --repository "${repo}"|sh
 done < $REPOS
-```
 
-### Publish cv-os-rhel-7Server Content View
-
-```
+# Publish cv-os-rhel-7Server Content View
 hammer content-view publish --name "${CV}" --organization $ORG \
     --description "Initial publish"
 
@@ -98,42 +81,17 @@ hammer content-view version promote --content-view-id $CVID \
 --to-lifecycle-environment Production \
 --id $APP_CVID \
 --async
-```
 
-### Create cv-os-rhel-7Server Activation Keys
-
-- ACME Subscriptions Available:
-	- Red Hat Enterprise Linux Server with Smart Management & Resilient Storage, Standard (Physical or Virtual Nodes)
-	- Red Hat Enterprise Linux Server, Premium (1-2 sockets) (Unlimited guests) with Smart Management
-	- Red Hat Enterprise Linux Server, Premium (1-2 sockets) (Unlimited guests) with Smart Management
-	- Red Hat Enterprise Linux Server with Smart Management, Premium (Physical or Virtual Nodes)
-	- Red Hat Enterprise Linux Server with Smart Management & Resilient Storage, Premium (Physical or Virtual Nodes)
-	- Red Hat Enterprise Linux for Virtual Datacenters, Premium
-	- Red Hat Enterprise Linux for Virtual Datacenters with Smart Management, Standard
-- Corp Available Subscriptions:
-	+ Employee SKU
-	+ CloudForms Employee Subscription
-	+ Red Hat Satellite Employee Subscription
-
-Repository_Sets
- - Red Hat Ansible Engine 2.6 RPMs for Red Hat Enterprise Linux 7 Server
-
-```
+# Activation Keys
 PRODUCT_SUBS_LIST=$(mktemp)
 hammer --csv --csv-separator '#' subscription list --per-page 9999 --organization ${ORG} > $PRODUCT_SUBS_LIST
-```
 
-Get the RHEL sub with qty 100
-```
+#Get the RHEL sub with qty 100
 SubRHEL=$(grep 100 $PRODUCT_SUBS_LIST | awk -F'#' '/Red Hat Enterprise Linux Server with Smart Management/ {print $1}')
-```
-
-```
-#rhel-7-server-optional-rpms
-
 ACTIVATION_KEYS=$(mktemp)
 hammer --output json activation-key list --organization "$ORG"| awk '/Name/ {print $0}' > $ACTIVATION_KEYS
 
+# Create activation keys
 for LC_ENV in $(echo ${LC_ENVS})
 do
 LC_ENV_LOWER=$(echo ${LC_ENV} | tr '[[:upper:]' '[[:lower:]]')
@@ -147,17 +105,18 @@ then
   ACT_KEY_ID=$(hammer activation-key list --name $ACT_KEY --organization $ORG | grep -o "^[0-9].")
 fi
 
+# Add subscriptions to activation key
 SubIDs="${SubRHEL}"
 for SubID in ${SubIDs}
 do
 echo echo hammer activation-key add-subscription --name "$ACT_KEY" --subscription-id "${SubID}" --organization "${ORG}"|sh
 done
 
-
+# Ensure these repos are enabled
 REPOS="$(mktemp)"
 cat > $REPOS << EOF
 rhel-7-server-satellite-tools-${SAT_VER}-rpms
-Red Hat Ansible Engine 2.6 RPMs for Red Hat Enterprise Linux 7 Server
+Red Hat Ansible Engine ${ANSIBLE_VER} RPMs for Red Hat Enterprise Linux 7 Server
 EOF
 
 while read repo;
@@ -166,86 +125,5 @@ do
 --content-label "${repo}" --value 1|sh
 done < $REPOS
 done
-```
 
-## Red Hat Enterprise Linux Fast Datapath
-
-* Set Environment Variables
-
-```
-ARCH="x86_64"
-TYPE="tools"
-LC_ENVS="Testing Production"
-ORG=ACME
-SAT_VER="6.4"
-CV_PRODUCT="rhel7-fast-datapath"
-ROLE="${CV_PRODUCT}"
-CV="cv-${TYPE}-${ROLE}"
-PRODUCT='"Red Hat Enterprise Linux Fast Datapath"'
-enabled_products=$(mktemp)
-REPOSITORY_SETS=$(mktemp)
-releasever="7Server"
-```
-
-* Enable Products
-
-```
-cat > $REPOSITORY_SETS <<EOF
-"Red Hat Enterprise Linux Fast Datapath (RHEL 7 Server) (RPMs)"
-EOF
-
-echo hammer --output json repository-set list --enabled=true --product "$PRODUCT" --organization $ORG|sh | awk '/Name/ {print $0}' > $enabled_products
-
-while read product;
-do
-  grep "$product" $enabled_products >/dev/null
-  if [ "$?" -ne "0" ];
-  then
-    echo hammer repository-set enable --name "$product" --product "$PRODUCT" --organization $ORG --basearch $ARCH --releasever $releasever
-  fi
-done<$REPOSITORY_SETS
-```
-
-### Create content 
-
-```
-DESCRIPTION='"RHEL Server 7 Fast Datapath"'
-create_content_view
-```
-
-### Add software repositories 
-```
-REPOS="$(mktemp)"
-cat > $REPOS << EOF
-'Red Hat Enterprise Linux Fast Datapath RHEL 7 Server RPMs x86_64 7Server'
-EOF
-
-while read repo;
-do
- echo hammer content-view add-repository --name "${CV}" --organization $ORG \
-    --product "${PRODUCT}" --repository "${repo}"|sh
-done < $REPOS
-```
-
-### Publish Content View
-
-```
-hammer content-view publish --name "${CV}" --organization $ORG \
-    --description "Initial publish"
-
-CVID=$(hammer --csv content-view list --name "${CV}" --organization ${ORG} | grep -vi '^Content View ID,' | awk -F',' '{print $1}')
-APP_CVID=`get_latest_version "${CV}"`
-
-hammer content-view version promote --content-view-id $CVID \
---organization "$ORG" \
---to-lifecycle-environment Testing \
---id $APP_CVID \
---async
-
-APP_CVID=`get_latest_version "${CV}"`
-hammer content-view version promote --content-view-id $CVID \
---organization "$ORG" \
---to-lifecycle-environment Production \
---id $APP_CVID \
---async
-```
+exit 0
