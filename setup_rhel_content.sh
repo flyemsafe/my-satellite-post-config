@@ -40,7 +40,7 @@ do
   grep "$product" $enabled_products >/dev/null
   if [ "$?" -ne "0" ];
   then
-    echo hammer repository-set enable --name "$product" --product "$PRODUCT" --organization $ORG --basearch $ARCH --releasever $releasever
+    echo hammer repository-set enable --name "$product" --product "$PRODUCT" --organization $ORG --basearch $ARCH --releasever $releasever|sh
   fi
 done<$REPOSITORY_SETS
 
