@@ -1,0 +1,48 @@
+ORG=ACME
+ARCH="x86_64"
+LC_ENVS="Testing Production"
+SAT_VER="6.4"
+ANSIBLE_VER="2.6"
+CV_PRODUCT="rhel"
+releasever="7Server"
+CV_DESCRIPTION='"RHEL Server 7 Core Build Content View"'
+
+# Content view nomenclature, order is important
+TYPE="os"
+ROLE=$(echo ${CV_PRODUCT}-${releasever} | tr '[:upper:]' '[:lower:]')
+CV="cv-${TYPE}-${ROLE}"
+
+# Should we publish and promote CV
+publish_promote=yes
+
+PRODUCT='"Red Hat Enterprise Linux Server"'
+REPOSITORY_SETS=$(mktemp)
+cat > $REPOSITORY_SETS <<EOF
+"Red Hat Enterprise Linux 7 Server (Kickstart)", --releasever ${releasever}
+"Red Hat Enterprise Linux 7 Server (RPMs)", --releasever ${releasever}
+"Red Hat Enterprise Linux 7 Server - Optional (RPMs)", --releasever ${releasever}
+"Red Hat Enterprise Linux 7 Server - Extras (RPMs)",
+"Red Hat Satellite Tools ${SAT_VER} (for RHEL 7 Server) (RPMs)",
+"Red Hat Enterprise Linux 7 Server - RH Common (RPMs)", --releasever ${releasever}
+"Red Hat Enterprise Linux 7 Server - Supplementary (RPMs)", --releasever ${releasever}
+EOF
+
+REPOS="$(mktemp)"
+cat > $REPOS << EOF
+"Red Hat Enterprise Linux 7 Server Kickstart x86_64 7Server"
+"Red Hat Enterprise Linux 7 Server RPMs x86_64 7Server"
+"Red Hat Satellite Tools ${SAT_VER} for RHEL 7 Server RPMs x86_64"
+"Red Hat Enterprise Linux 7 Server - Extras RPMs x86_64"
+"Red Hat Enterprise Linux 7 Server - Supplementary RPMs x86_64 7Server"
+EOF
+
+ACTKEY_REPOS="$(mktemp)"
+cat > $ACTKEY_REPOS << EOF
+rhel-7-server-satellite-tools-${SAT_VER}-rpms
+rhel-7-server-ansible-2.6-rpms
+EOF
+
+SUBSCRIPTIONS="$(mktemp)"
+cat > $SUBSCRIPTIONS <<EOF
+Red Hat Enterprise Linux Server with Smart Management, 100
+EOF

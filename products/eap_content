@@ -1,0 +1,48 @@
+ORG=ACME
+ARCH="x86_64"
+LC_ENVS="Testing Production"
+CV_PRODUCT="eap"
+releasever="7Server"
+CV_DESCRIPTION='"JBoss Enterprise Application Platform"'
+CV_TYPE="app"
+CCV_TYPE="infra"
+
+# Content view nomenclature, order is important
+if [ "$CV_TYPE" != "os" ];
+then
+    ROLE=$(echo ${CV_PRODUCT} | tr '[:upper:]' '[:lower:]')
+else
+    ROLE=$(echo ${CV_PRODUCT}-${releasever}-${ARCH} | tr '[:upper:]' '[:lower:]')
+fi
+CV="cv-${CV_TYPE}-${ROLE}"
+CCV="ccv-${CCV_TYPE}-${CV_PRODUCT}"
+
+# Should we publish and promote CV
+# yes - publish if changes to CV
+# force = always publish
+publish_promote=yes
+
+# should activationkeys be created
+create_activationkey=yes
+
+# should this be a composit content view
+create_ccv=no
+composite_cv='cv-virt-rhv4u2 cv-app-ansible'
+
+
+# hammer repository-set list --product "$PRODUCT" --organization ACME
+REPOSITORY_SETS=$(mktemp)
+cat > $REPOSITORY_SETS <<EOF
+"JBoss Enterprise Application Platform", "JBoss Enterprise Application Platform 7.2 (RHEL 7 Server) (RPMs)", "JBoss Enterprise Application Platform 7.2 RHEL 7 Server RPMs x86_64",
+EOF
+
+ACTKEY_REPOS="$(mktemp)"
+cat > $ACTKEY_REPOS << EOF
+jb-eap-7-for-rhel-7-server-rpms
+EOF
+
+SUBSCRIPTIONS="$(mktemp)"
+cat > $SUBSCRIPTIONS <<EOF
+Red Hat JBoss Enterprise Application Platform, 16-Core Premium; 10
+EOF
+

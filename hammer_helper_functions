@@ -1,0 +1,220 @@
+get_latest_version () {
+ CVID=$(echo hammer --csv content-view list --name "$1" --organization ${ORG}|sh|grep -vi '^Content View ID,' | awk -F',' '{print $1}')
+ if [ -n "$CVID" ];
+ then
+     VID=$(echo hammer content-view version list --content-view-id ${CVID}|sh |\
+            awk -F'|' '{print $1}' | sort -n | tac | head -n 1)
+     echo $VID
+  else
+    exit 1
+ fi
+}
+
+add_cv_repo() {
+  while read repo;
+  do
+    echo hammer content-view add-repository --name "${1}" --organization $2 --product "$3" --repository "${repo}"
+  done < $4
+}
+
+activation_keys () {
+  hammer --output json activation-key list --organization "$ORG"| awk '/Name/ {print $0}' > $1
+}
+
+find_subscription () {
+    if [ -z "$2" ]; then
+      hammer --output json subscription list --per-page 9999 --organization ${ORG} | grep -B2 -A7 "$1"
+    else
+       hammer --output json subscription list --per-page 9999 --organization ${ORG} | grep -B2 -A7 "$1" | grep -A1 -B8 "\"Quantity\": $2," | awk -F, '/"ID":/ {print $1}' | awk '{print $2}'
+    fi
+}
+
+create_content_view () {
+    CV=$1
+    ENABLED_CONTENT_VIEWS=$(mktemp)
+    hammer --output json content-view list --organization "$ORG"| awk '/Name/ {print $0}' > $ENABLED_CONTENT_VIEWS
+    RESULT=$(grep -w $CV $ENABLED_CONTENT_VIEWS |awk -F'"' '{print $4}')
+    if [ "$RESULT" != "$CV" ];
+    then
+        echo "creating content view $CV"
+        hammer content-view create --name "$CV" --description "$CV_DESCRIPTION" --organization "$ORG"
+    else
+       echo "content view $CV already exist"
+    fi
+}
+
+sync_container_repos () {
+
+    REPOS_LIST=$1
+    CONTAINER_REPOS="$(mktemp)"
+    echo hammer --output csv repository list --organization $ORG --product="'$PRODUCT'"|sh | awk -F',' '/docker/ {print $2}' > $CONTAINER_REPOS
+    
+    while read repo;
+    do
+        getlabel=$(echo $repo|sed 's#/#-#')
+        label="container-${getlabel}"
+        name="Container $getlabel"
+        upstream_name="$repo"
+
+        RESULT=$(echo grep -q "'$name'" $CONTAINER_REPOS|sh; echo $?)
+        if [ $RESULT -eq 1 ];
+        then
+            echo hammer repository create  --organization "$ORG" --name="'$name'" --label="$label" --product="'$PRODUCT'" --content-type="$PRODUCT_REPO_TYPE" --publish-via-http=true --url="$PRODUCT_REPO_URL" --docker-upstream-name="'$upstream_name'"|sh
+        fi
+    done<$REPOS_LIST
+
+    while read repo;
+    do
+        getlabel=$(echo $repo|sed 's#/#-#')
+        label="container-${getlabel}"
+        name="Container $getlabel"
+
+        echo "Checking if $name needs syncing"
+        RESULT=$(echo hammer repository info --organization "$ORG" --product "'$PRODUCT'" --name "'$name'"|sh | awk '/Status:/ {print $2}')
+        if [ "$RESULT" != "Success" ];
+        then
+            echo hammer repository synchronize --organization "$ORG" --product "'$PRODUCT'" --name "'$name'"|sh
+        fi
+    done<$REPOS_LIST
+}
+
+promote_content_view () {
+    CV=$1
+    # Check for changes to content view
+    CV_REPOS=$(hammer --output json content-view info --name $CV --organization $ORG |\
+            grep -A40 $CV | grep -B2 Label | grep ID | grep -o "[0-9]." | paste -sd "")
+    LC_RESULT=$(hammer content-view info --name $CV --organization ACME | egrep -A100 "Lifecycle Environments" | grep -B100 Versions | awk -F: '/ID/ {print $2}' | paste -sd ""|tr -d '[:space:]')
+
+    if [ "$publish_promote" == "force" ];
+    then
+        publish_promote=yes
+    elif [ "$publish_promote" != "no" ];
+    then
+        if [ "${LC_RESULT}A" == "A" ];
+        then
+            publish_promote=yes
+        else
+            if [ "$CV_REPOS" != "$CV_REPOS_BEFORE" ];
+            then
+                publish_promote=yes
+            else
+                publish_promote=no
+            fi
+        fi
+    fi
+
+    if [ "$publish_promote" == "yes" ];
+    then
+        echo "publishing $CV content view"
+        hammer content-view publish --name "${CV}" --organization $ORG \
+           --description "Initial publish"
+
+        CVID=$(hammer --csv content-view list --name "${CV}" --organization ${ORG} |\
+           grep -vi '^Content View ID,' | awk -F',' '{print $1}')
+        APP_CVID=`get_latest_version "${CV}"`
+
+        for lc in $LC_ENVS;
+        do
+            echo "promoting content view $CV to $lc"
+            hammer content-view version promote --content-view-id $CVID \
+               --organization "$ORG" \
+               --to-lifecycle-environment $lc \
+               --id $APP_CVID \
+               --async
+               APP_CVID=`get_latest_version "${CV}"`
+            sleep 2
+        done
+    fi
+
+    LC_PATHS=$(mktemp)
+    echo hammer content-view info --name "${CV}" --organization $ORG|sh > $LC_PATHS
+    for lc in $LC_ENVS;
+    do
+        grep "$lc" "$LC_PATHS" >/dev/null || {
+            CVID=$(hammer --csv content-view list --name "${CV}" --organization ${ORG} |\
+               grep -vi '^Content View ID,' | awk -F',' '{print $1}')
+            APP_CVID=`get_latest_version "${CV}"`
+            echo "$CV wasn't in lc-environment $lc..correcting"
+            hammer content-view version promote --content-view-id $CVID \
+               --organization "$ORG" \
+               --to-lifecycle-environment $lc \
+               --id $APP_CVID \
+               --async
+        }
+    done
+}
+
+create_activation_keys () {
+    if [ "$create_activationkey" == "yes" ];
+    then
+        # get list of subscriptions
+        hammer --csv --csv-separator '#' subscription list --per-page 9999 --organization \
+               ${ORG} > $PRODUCT_SUBS_LIST
+
+        # Get the list of all activation keys
+        hammer --output json activation-key list --organization "$ORG"| \
+               awk '/Name/ {print $0}' > $ACTIVATION_KEYS
+
+        for LC_ENV in $(echo ${LC_ENVS})
+        do
+            LC_ENV_LOWER=$(echo ${LC_ENV} | tr '[[:upper:]' '[[:lower:]]')
+            LC_ENV_UPPER=$(echo ${LC_ENV} | tr '[[:lower:]' '[[:upper:]]')
+
+            if [ "$TYPE" != "os" ];
+            then
+                ACT_KEY="act-${LC_ENV_LOWER}-${TYPE}-${ROLE}"
+            else
+                ACT_KEY="act-${LC_ENV_LOWER}-${TYPE}-${ROLE}-${ARCH}"
+            fi
+
+            # Create activation key if it does not exist
+            grep "$ACT_KEY" $ACTIVATION_KEYS >/dev/null
+            if [ "$?" -ne "0" ];
+            then
+                echo "creating activation key $ACT_KEY"
+                echo hammer activation-key create --name "$ACT_KEY" --content-view "$CV" \
+                     --lifecycle-environment "${LC_ENV}" --organization "${ORG}"|sh
+                # Disable auto-attach because it breaks multiple subscriptions
+                # https://access.redhat.com/solutions/3346911
+                # Get activation key id
+                ACT_KEY_ID=$(hammer activation-key list --name $ACT_KEY --organization $ORG | grep -o "^[0-9].")
+                echo hammer activation-key update --auto-attach no --id "$ACT_KEY_ID" --organization $ORG|sh
+            fi
+
+            # Get activation key id
+            ACT_KEY_ID=$(hammer activation-key list --name $ACT_KEY --organization $ORG | grep -o "^[0-9].")
+
+            # Add subscriptions to activation key
+            while IFS=";" read product sub;
+            do
+                product_subs=$(echo grep "'$product'" $PRODUCT_SUBS_LIST|sh)
+                SubID=$(echo $product_subs | grep $sub | awk -F'#' '{print $1}')
+                ATTACHED_SUBS=$(hammer --output csv activation-key subscriptions --name $ACT_KEY --organization $ORG | grep "$product" |awk -F, '{print $1}')
+                if [ "$SubID" != "$ATTACHED_SUBS" ]; 
+                then
+                    echo "ensureing subscription ids $SubID to $ACT_KEY"
+                    echo hammer activation-key add-subscription --name "$ACT_KEY" --subscription-id \
+                         "${SubID}" --organization "${ORG}"|sh
+                fi
+            done < $SUBSCRIPTIONS
+
+
+            # Get repos enabled for this activation key
+            PRODUCT_CONTENT=$(mktemp)
+            hammer --no-headers --output csv activation-key product-content --name $ACT_KEY \
+                   --organization $ORG | awk -F',' '{print $3}' > $PRODUCT_CONTENT
+
+            # Ensure these repos are enabled
+            while read repo;
+            do
+                grep "$repo" $PRODUCT_CONTENT >/dev/null || {
+                    echo -n "ensuring $repo with $ACT_KEY..."
+                    echo hammer activation-key content-override --id $ACT_KEY_ID --organization "$ORG" \
+                         --content-label "'${repo}'" --value 1|sh
+                }
+            done < $ACTKEY_REPOS
+         
+        done
+    fi
+}
+

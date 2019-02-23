@@ -1,0 +1,49 @@
+ORG=ACME
+ARCH="x86_64"
+LC_ENVS="Testing Production"
+CV_PRODUCT="rhvm"
+releasever="7Server"
+CV_DESCRIPTION='"Red Hat Virtualization Manager"'
+CV_TYPE="app"
+CCV_TYPE="infra"
+
+# Content view nomenclature, order is important
+if [ "$CV_TYPE" == "app" ];
+then
+    ROLE=$(echo ${CV_PRODUCT} | tr '[:upper:]' '[:lower:]')
+else
+    ROLE=$(echo ${CV_PRODUCT}-${releasever}-${ARCH} | tr '[:upper:]' '[:lower:]')
+fi
+CV="cv-${CV_TYPE}-${ROLE}"
+CCV="ccv-${CCV_TYPE}-${CV_PRODUCT}"
+
+# Should we publish and promote CV
+# yes - publish if changes to CV
+# force = always publish
+publish_promote=yes
+
+# should activationkeys be created
+create_activationkey=yes
+
+# should this be a composit content view
+create_ccv=yes
+composite_cv='cv-os-rhel-7server cv-virt-rhv4u2 cv-app-ansible cv-app-eap'
+
+create_reposets=no
+
+ACTKEY_REPOS="$(mktemp)"
+cat > $ACTKEY_REPOS << EOF
+rhel-7-server-rpms
+rhel-7-server-supplementary-rpms
+rhel-7-server-rhv-4.2-manager-rpms
+rhel-7-server-rhv-4-manager-tools-rpms
+rhel-7-server-ansible-2-rpms
+jb-eap-7-for-rhel-7-server-rpms
+EOF
+
+SUBSCRIPTIONS="$(mktemp)"
+cat > $SUBSCRIPTIONS <<EOF
+Red Hat Enterprise Linux Server with Smart Management, Premium (Physical or Virtual Nodes; 100
+Red Hat Virtualization Manager; 50
+EOF
+

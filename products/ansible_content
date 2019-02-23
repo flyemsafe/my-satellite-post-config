@@ -1,0 +1,36 @@
+ORG=ACME
+ARCH="x86_64"
+LC_ENVS="Testing Production"
+ANSIBLE_VER="2.6"
+CV_PRODUCT="ansible"
+releasever="7Server"
+CV_DESCRIPTION='"Ansible Engine"'
+TYPE="app"
+
+# Content view nomenclature, order is important
+if [ "$TYPE" == "app" ];
+then
+    ROLE=$(echo ${CV_PRODUCT} | tr '[:upper:]' '[:lower:]')
+else
+    ROLE=$(echo ${CV_PRODUCT}-${releasever} | tr '[:upper:]' '[:lower:]')
+fi
+CV="cv-${TYPE}-${ROLE}"
+
+# Should we publish and promote CV
+publish_promote=yes
+create_activationkey=no
+
+# "hammer repository-set list --product "$PRODUCT" --organization ACME"
+PRODUCT='"Red Hat Ansible Engine"'
+
+# hammer repository-set list --product "$PRODUCT" --organization ACME
+REPOSITORY_SETS=$(mktemp)
+cat > $REPOSITORY_SETS <<EOF
+"Red Hat Ansible Engine 2 RPMs for Red Hat Enterprise Linux 7 Server",
+EOF
+
+# echo hammer repository-set info --name "'Red Hat Ansible Engine 2 RPMs for Red Hat Enterprise Linux 7 Server'" --product "'Red Hat Ansible Engine'" --organization ACME|sh | grep -B1 Type
+REPOS="$(mktemp)"
+cat > $REPOS << EOF
+"Red Hat Ansible Engine 2 RPMs for Red Hat Enterprise Linux 7 Server x86_64"
+EOF
