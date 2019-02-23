@@ -1,100 +1,34 @@
-# Hammer Commands to Populate Satellite 6
+# Red Hat Products Content Views
 
-This is a guide I use for populating my Satellite 6 with content.
+**NOTICE:** *This is actively being cleaned up. Some things are missing*
 
-**References**
+This repo contains some bash scripting wrapper around the `hammer` command to create content vies for Red Hat products. Content views are created for base products such as Red Hat enterprise Linux Server and Glusterfs. Then composite content views are created to include products that depend on each other. For example, Glusterfs depends on RHEL, so the corresponding content view consists of both the RHEL and glusterfs content view. The corresponding activation keys are also created, one for each life cycle environment. In addition, the subscriptions are also attached to the activation keys.
 
-- [dirkherrmann/soe-reference-architecture](https://github.com/dirkherrmann/soe-reference-architecture)
-- [dmoessne/if-I-had-a-hammer](https://github.com/dmoessne/if-I-had-a-hammer)
-- [shetze/hammer-scripts](https://github.com/shetze/hammer-scripts/blob/master/sat62-setup.sh)
-- [theforeman/foreman_ansible_inventory](https://github.com/theforeman/foreman_ansible_inventory)
+Allot of this is based on the [10 Steps to Build an SOE: How Red Hat Satellite 6 Supports Setting up a Standard Operating Environment](https://access.redhat.com/articles/1585273).
 
+## Usage
 
-## Manifest
+For now, make sure all the content views are created before you create products that are composite views. At some point I will update the script to do this in one shot.
 
+* The `populate_satellite.sh` file is the main script.
+* The `hammer_helper_functions` file contains all the functions that are source by `populate_satellite.sh`.
+* The `products` contains the configuration file for each product content view or composite content view.
 
-https://github.com/SatelliteQE/automation-tools/blob/10cf8566be5e70c1ced1b04ab4bebdb09310cea4/automation_tools/__init__.py#L2260
+### Get Started
 
+1. Clone this repo to your Satellite server
+2. Setup hammer to connect to Satellite without being promoted for username and password
+3. Edit the product config file, for example `products/rhv_content`
+4. Run it `populate_satellite.sh products/rhv_content`
 
-See (https://github.com/RedHatSatellite/rhsmTools/blob/master/rhsmDownloadManifest.py) for another example.
+## Disclaimer 
 
-Another way is:
-curl -s -u username:password -X PUT -k https://subscription.rhsm.stage.redhat.com/subscription/consumers/<UUID>/certificates?lazy_regen=false
+All this work is the result my role a Solutions Architect to be able to quickly stand up a Satellite server. Please take the time to adopt it to your environment and needs, any feedback is always welcome. Probable the most important info here is the names of the repository_sets and repos that you need to enable in Satellite for each product.
 
-curl -s -u username:password -k https://subscription.rhsm.stage.redhat.com/subscription/consumers/<UUID>/export/ > manifest.zip.
+## Products Covered
 
-Roman, you may want to update your code in the automation-tools repo to issue a PUT to /consumers/<UUID>/certificates as I do above [1]. You'd want to do this because you would otherwise potentially download a manifest which has new metadata (such as new content sets/repos) but does not have the required Entitlement certificates to actually access the content.
-
-- Rich
-
-
-[1] - http://www.candlepinproject.org/swagger/?url=candlepin/swagger-2.0.13.json#!/consumers/regenerateEntitlementCertificates
-```
-
-## Access Insights
-
-* [Configuring Basic Authentication for Red Hat Access Insights in Satellite 6](https://mojo.redhat.com/docs/DOC-1043937)
-
-## Setup bashrc
-
-### Functions
-
-```
-get_latest_version {
- CVID=$(hammer --csv content-view list --name $1 --organization ${ORG} | grep -vi '^Content View ID,' | awk -F',' '{print $1}' )
- VID=`hammer content-view version list --content-view-id ${CVID} | awk -F'|' '{print $1}' | sort -n | tac | head -n 1`
-echo $VID
-}
-
-promote_content () {
-  APP_CVID=`get_latest_version "$4"`
-  hammer content-view version promote --content-view-id $2 \
-    --organization $3 \
-    --to-lifecycle-environment $1 \
-   --id $APP_CVID \
-   --async
-}
-
-add_cv_repo() {
-  while read repo;
-  do
-    echo hammer content-view add-repository --name "${1}" --organization $2 --product "$3" --repository "${repo}"
-  done < $4
-}
-
-create_activation_keys () {
-  for LC_ENV in $(echo ${LC_ENVS})
-  do
-      LC_ENV_LOWER=$(echo ${LC_ENV} | tr '[[:upper:]' '[[:lower:]]')
-      LC_ENV_UPPER=$(echo ${LC_ENV} | tr '[[:lower:]' '[[:upper:]]')
-      ACT_KEY="act-${LC_ENV_LOWER}-${ROLE}-${ARCH}"
-
-      grep "$ACT_KEY" $ACTIVATION_KEYS >/dev/null
-      if [ "$?" -ne "0" ];
-      then
-        echo hammer activation-key create --name "$ACT_KEY" --content-view "$CV" --lifecycle-environment "${LC_ENV}" --organization "${ORG}"
-      fi
-      ACT_KEY_ID=$(hammer activation-key list --name $ACT_KEY --organization $ORG | grep -o "^[0-9].")
-
-      for SubID in ${SubIDs}
-      do
-        subscription_list=$(mktemp)
-        hammer --output csv activation-key subscriptions --organization $ORG --name "$ACT_KEY" > $subscription_list
-        CURRENT_ID=$(grep $SubID $subscription_list | cut -d',' -f1)
-        if [ "$CURRENT_ID" != "$SubID" ];
-        then
-          echo "echo currentID=$CURRENT_ID"
-          echo "echo givenID=$SubID"
-          echo hammer activation-key add-subscription --name "$ACT_KEY" --subscription-id "${SubID}" --organization "${ORG}"
-        fi
-      done
-
-      while read repo;
-      do
-        echo hammer activation-key content-override --id $ACT_KEY_ID --organization "$ORG" \
---content-label "${repo}" --value 1
-      done < $REPOS
-  done
-}
-
-```
+- Red Hat Enterprise Linux Server
+- Red Hat Ansible Engine
+- Red Hat Gluster Storage
+- Red Hat Virtualization
+- JBoss Enterprise Application Platform
