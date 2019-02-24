@@ -32,3 +32,10 @@ All this work is the result my role a Solutions Architect to be able to quickly 
 - Red Hat Gluster Storage
 - Red Hat Virtualization
 - JBoss Enterprise Application Platform
+
+## References
+
+- [dirkherrmann/soe-reference-architecture](https://github.com/dirkherrmann/soe-reference-architecture)
+- [dmoessne/if-I-had-a-hammer](https://github.com/dmoessne/if-I-had-a-hammer)
+- [shetze/hammer-scripts](https://github.com/shetze/hammer-scripts/blob/master/sat62-setup.sh)
+- [theforeman/foreman_ansible_inventory](https://github.com/theforeman/foreman_ansible_inventory)
