@@ -1,48 +1,65 @@
+# Must change per your environment
 ORG=ACME
 ARCH="x86_64"
 LC_ENVS="Testing Production"
 SAT_VER="6.4"
-ANSIBLE_VER="2.6"
+
 CV_PRODUCT="rhel"
-releasever="7Server"
 CV_DESCRIPTION='"RHEL Server 7 Core Build Content View"'
+CV_TYPE="os"
+
+# Change if not RHEL7
+releasever="7Server"
 
 # Content view nomenclature, order is important
-TYPE="os"
-ROLE=$(echo ${CV_PRODUCT}-${releasever} | tr '[:upper:]' '[:lower:]')
-CV="cv-${TYPE}-${ROLE}"
+# This constructs the CV and CCV names
+if [ "$CV_TYPE" != "os" ];
+then
+    ROLE=$(echo ${CV_PRODUCT} | tr '[:upper:]' '[:lower:]')
+else
+    ROLE=$(echo ${CV_PRODUCT}-${releasever}-${ARCH} | tr '[:upper:]' '[:lower:]')
+fi
+
+CV="cv-${CV_TYPE}-${ROLE}"
+
+# Create content view
+create_cv=yes
 
 # Should we publish and promote CV
+# yes - publish if changes to CV
+# force = always publish
 publish_promote=yes
 
-PRODUCT='"Red Hat Enterprise Linux Server"'
+# should this be a composit content view
+# if yes, make sure to change composite_cv with the correct CVs
+
+create_ccv=no
+composite_cv='cv-os-rhel-7server cv-app-rhv'
+
+create_reposets=yes
 REPOSITORY_SETS=$(mktemp)
 cat > $REPOSITORY_SETS <<EOF
-"Red Hat Enterprise Linux 7 Server (Kickstart)", --releasever ${releasever}
-"Red Hat Enterprise Linux 7 Server (RPMs)", --releasever ${releasever}
-"Red Hat Enterprise Linux 7 Server - Optional (RPMs)", --releasever ${releasever}
-"Red Hat Enterprise Linux 7 Server - Extras (RPMs)",
-"Red Hat Satellite Tools ${SAT_VER} (for RHEL 7 Server) (RPMs)",
-"Red Hat Enterprise Linux 7 Server - RH Common (RPMs)", --releasever ${releasever}
-"Red Hat Enterprise Linux 7 Server - Supplementary (RPMs)", --releasever ${releasever}
+"Red Hat Enterprise Linux 7 Server (Kickstart)",                          "Red Hat Enterprise Linux 7 Server Kickstart x86_64 7Server",                       $releasever
+"Red Hat Enterprise Linux 7 Server (RPMs)",                               "Red Hat Enterprise Linux 7 Server RPMs x86_64 7Server",                            $releasever
+"Red Hat Enterprise Linux 7 Server - Extras (RPMs)",                      "Red Hat Enterprise Linux 7 Server - Extras RPMs x86_64",                           ""
+"Red Hat Satellite Tools ${SAT_VER} (for RHEL 7 Server) (RPMs)",          "Red Hat Satellite Tools ${SAT_VER} for RHEL 7 Server RPMs x86_64",                 ""
+"Red Hat Enterprise Linux 7 Server - RH Common (RPMs)",                   "Red Hat Enterprise Linux 7 Server - RH Common RPMs x86_64 7Server",                $releasever
+"Red Hat Enterprise Linux 7 Server - Supplementary (RPMs)",               "Red Hat Enterprise Linux 7 Server - Supplementary RPMs x86_64 7Server",            $releasever
+"Red Hat Enterprise Linux 7 Server - Optional (RPMs)",                    "Red Hat Enterprise Linux 7 Server - Optional RPMs x86_64 7Server",                 $releasever
 EOF
 
-REPOS="$(mktemp)"
-cat > $REPOS << EOF
-"Red Hat Enterprise Linux 7 Server Kickstart x86_64 7Server"
-"Red Hat Enterprise Linux 7 Server RPMs x86_64 7Server"
-"Red Hat Satellite Tools ${SAT_VER} for RHEL 7 Server RPMs x86_64"
-"Red Hat Enterprise Linux 7 Server - Extras RPMs x86_64"
-"Red Hat Enterprise Linux 7 Server - Supplementary RPMs x86_64 7Server"
-EOF
+# Add repositories to content views 
+add_cv_repos=yes
 
+# should activationkeys be created
+create_activationkey=yes
 ACTKEY_REPOS="$(mktemp)"
 cat > $ACTKEY_REPOS << EOF
 rhel-7-server-satellite-tools-${SAT_VER}-rpms
-rhel-7-server-ansible-2.6-rpms
+rhel-7-server-rpms
 EOF
 
 SUBSCRIPTIONS="$(mktemp)"
 cat > $SUBSCRIPTIONS <<EOF
-Red Hat Enterprise Linux Server with Smart Management, 100
+Red Hat Enterprise Linux Server with Smart Management; 100
 EOF

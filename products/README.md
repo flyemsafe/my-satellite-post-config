@@ -109,4 +109,31 @@ composite_cv='cv-os-rhel-7server cv-app-rhv'
 ```
 
 
+# References
+
+Product repos and link to product documentation.
+
+
+## [Red Hat Hyperconverged Infrastructure for Cloud Repos](https://access.redhat.com/documentation/en-us/red_hat_hyperconverged_infrastructure_for_cloud/13/html/deployment_guide/rhhi-cloud-required-repositories)
+
+reposets:
+  - Red Hat Enterprise Linux 7 Server (RPMs)
+  - Red Hat Enterprise Linux 7 Server - Extras (RPMs)
+  - Red Hat Enterprise Linux 7 Server - RH Common (RPMs)
+  - Red Hat Enterprise Linux High Availability (for RHEL 7 Server) (RPMs)
+  - Red Hat Enterprise Linux OpenStack Platform 13 for RHEL 7 (RPMs)
+  - Red Hat Ceph Storage 3 OSD for Red Hat Enterprise Linux 7 Server (RPMs)
+  - Red Hat Ceph Storage 3 MON for Red Hat Enterprise Linux 7 Server (RPMs)
+  - Red Hat Ceph Storage 3 Tools for Red Hat Enterprise Linux 7 Workstation (RPMs)
+
+repo_labels:
+  - rhel-7-server-rpms
+  - rhel-7-server-extras-rpms
+  - rhel-7-server-rh-common-rpms
+  - rhel-ha-for-rhel-7-server-rpms
+  - rhel-7-server-openstack-13-rpms
+  - rhel-7-server-rhceph-3-osd-rpms
+  - rhel-7-server-rhceph-3-mon-rpms
+  - rhel-7-server-rhceph-3-tools-rpms
+--------------------------------------------------------------------------------
 
