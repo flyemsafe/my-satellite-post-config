@@ -151,6 +151,7 @@ create_activation_keys () {
         hammer --csv --csv-separator '#' subscription list --per-page 9999 --organization \
                ${ORG} > $PRODUCT_SUBS_LIST
 
+
         # Get the list of all activation keys
         hammer --output json activation-key list --organization "$ORG"| \
                awk '/Name/ {print $0}' > $ACTIVATION_KEYS
