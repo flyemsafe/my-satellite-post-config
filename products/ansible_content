@@ -1,11 +1,19 @@
+# Ansible Engine content view, actication key and repos
+
+# Must change per your environment
 ORG=ACME
 ARCH="x86_64"
 LC_ENVS="Testing Production"
 ANSIBLE_VER="2.6"
+
+# Content view nomenclature
 CV_PRODUCT="ansible"
-releasever="7Server"
 CV_DESCRIPTION='"Ansible Engine"'
-TYPE="app"
+CV_TYPE="app"
+
+# Change if not RHEL7
+RHEL_RELEASE=7
+releasever="${RHEL_RELEASE}Server"
 
 # Content view nomenclature, order is important
 if [ "$TYPE" == "app" ];
@@ -14,23 +22,44 @@ then
 else
     ROLE=$(echo ${CV_PRODUCT}-${releasever} | tr '[:upper:]' '[:lower:]')
 fi
+
+# CV and CCV names
 CV="cv-${TYPE}-${ROLE}"
 
-# Should we publish and promote CV
-publish_promote=yes
-create_activationkey=no
-
-# "hammer repository-set list --product "$PRODUCT" --organization ACME"
-PRODUCT='"Red Hat Ansible Engine"'
-
-# hammer repository-set list --product "$PRODUCT" --organization ACME
+# Repository Sets (Red Hat Product Repositories)
+create_reposets=yes
 REPOSITORY_SETS=$(mktemp)
 cat > $REPOSITORY_SETS <<EOF
-"Red Hat Ansible Engine 2 RPMs for Red Hat Enterprise Linux 7 Server",
+Red Hat Ansible Engine 2 RPMs for Red Hat Enterprise Linux 7 Server
 EOF
 
-# echo hammer repository-set info --name "'Red Hat Ansible Engine 2 RPMs for Red Hat Enterprise Linux 7 Server'" --product "'Red Hat Ansible Engine'" --organization ACME|sh | grep -B1 Type
-REPOS="$(mktemp)"
-cat > $REPOS << EOF
-"Red Hat Ansible Engine 2 RPMs for Red Hat Enterprise Linux 7 Server x86_64"
+# Create content view
+create_cv=yes
+
+# should this be a composit content view
+# if yes, make sure to change composite_cv with the correct CVs
+create_ccv=no
+composite_cv='cv-os-rhel-7server cv-app-rhv'
+
+# Add repositories to content views 
+add_cv_repos=yes
+CV_REPOS_TO_ENABLE=$(mktemp)
+cat > $CV_REPOS_TO_ENABLE <<EOF
+Red Hat Ansible Engine 2 RPMs for Red Hat Enterprise Linux 7 Server x86_64
+EOF
+
+# Should we publish and promote CV
+# yes - publish if changes to CV
+# force = always publish
+publish_promote=yes
+
+
+# should activationkeys be created
+create_activationkey=no
+ACTKEY_REPOS="$(mktemp)"
+cat > $ACTKEY_REPOS << EOF
+EOF
+
+SUBSCRIPTIONS="$(mktemp)"
+cat > $SUBSCRIPTIONS <<EOF
 EOF

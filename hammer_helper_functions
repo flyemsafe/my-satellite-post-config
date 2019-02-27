@@ -169,6 +169,7 @@ create_activation_keys () {
             fi
 
             # Create activation key if it does not exist
+            #grep act-testing-os-rhel-7srv-x86_64-x86_64 /tmp/tmp.02KCVhl2xu | awk -F'"' '{print $4}'
             grep "$ACT_KEY" $ACTIVATION_KEYS >/dev/null
             if [ "$?" -ne "0" ];
             then
@@ -199,20 +200,19 @@ create_activation_keys () {
                 fi
             done < $SUBSCRIPTIONS
 
-
             # Get repos enabled for this activation key
             PRODUCT_CONTENT=$(mktemp)
-            hammer --no-headers --output csv activation-key product-content --name $ACT_KEY \
-                   --organization $ORG | awk -F',' '{print $3}' > $PRODUCT_CONTENT
+            hammer --no-headers --output csv activation-key product-content --name $ACT_KEY --organization ACME > $PRODUCT_CONTENT
 
             # Ensure these repos are enabled
             while read repo;
             do
-                grep "$repo" $PRODUCT_CONTENT >/dev/null || {
-                    echo -n "ensuring $repo with $ACT_KEY..."
-                    echo hammer activation-key content-override --id $ACT_KEY_ID --organization "$ORG" \
-                         --content-label "'${repo}'" --value 1|sh
-                }
+                RESULT=$(grep $repo $PRODUCT_CONTENT | awk -F',' '{print $4}')
+                if [ "${RESULT}A" != "trueA" ];
+                then
+                    echo -n "adding $repo to $ACT_KEY..."
+                    echo hammer activation-key content-override --id $ACT_KEY_ID --organization "$ORG" --content-label "'${repo}'" --value 1|sh
+                fi
             done < $ACTKEY_REPOS
          
         done

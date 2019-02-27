@@ -37,11 +37,7 @@ then
     echo hammer --output json repository-set list --enabled=true $org|sh | awk -F':' '/Name/ {print $2}' > $enabled_products
     # Get list of all products
     echo hammer --output json repository-set list $org|sh | awk -F':' '/Name/ {print $2}' > $all_products
-<<<<<<< HEAD
     while IFS=, read reposet release;
-=======
-    while IFS=, read reposet repo release;
->>>>>>> dae323a777f3db6d4a3d20b0e4adca871b9cea62
     do
         #product_exist=$(grep "$reposet" $all_products)
         #if [ "'${reposet}'" != "'${product_exist}'" ];
@@ -53,21 +49,12 @@ then
             grep "$reposet" $enabled_products >/dev/null
             if [ "$?" != "0" ];
             then
-<<<<<<< HEAD
                 echo "enabling reposet: $reposet $release"
                 if [ "${release}A" == "A" ];
                 then
                     echo hammer repository-set enable --name "'$reposet'" --organization "$ORG" --basearch "$ARCH"|sh
                 else
                     echo hammer repository-set enable --name "'$reposet'" --organization "$ORG" --basearch "$ARCH" --releasever $release|sh
-=======
-                echo "enabling $product reposet: $reposet"
-                if [ "${release}A" == "A" ] || [ "${release}A" != '""' ];
-                then
-                    echo hammer repository-set enable --name "$reposet" --organization "$ORG" --basearch "$ARCH"
-                else
-                    echo hammer repository-set enable --name "$reposet" --organization "$ORG" --basearch "$ARCH" --release $release
->>>>>>> dae323a777f3db6d4a3d20b0e4adca871b9cea62
                 fi
             fi
         fi
@@ -78,7 +65,6 @@ fi
 # Add repositories to content views
 if [ "$add_cv_repos" == "yes" ];
 then
-<<<<<<< HEAD
     CV_ENABLED_REPOS=$(mktemp)
     hammer content-view info --name $CV $org | grep -A100 'Yum Repositories' | grep -B100 'Container Image Repositories' | awk -F: '/Name/ {print $2}' > $CV_ENABLED_REPOS
     while IFS=, read repo;
@@ -90,17 +76,6 @@ then
             echo hammer content-view add-repository --name ${CV} $org --repository "'${repo}'"|sh
         fi
     done<$CV_REPOS_TO_ENABLE
-=======
-    while IFS=, read reposet repo release;
-    do
-        RESULT=$(echo grep "$repo" $CV_REPOS|sh)
-        if [ "${RESULT}A" == "A" ];
-        then
-            echo -n "adding $repo to $CV..."
-            echo hammer content-view add-repository --name ${CV} $org --repository ${repo}|sh
-        fi
-    done<$REPOSITORY_SETS
->>>>>>> dae323a777f3db6d4a3d20b0e4adca871b9cea62
 fi
 
 # composite content views

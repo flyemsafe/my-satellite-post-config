@@ -72,10 +72,7 @@ create_activationkey=yes
 ACTKEY_REPOS="$(mktemp)"
 cat > $ACTKEY_REPOS << EOF
 rhel-7-server-rpms
-rhel-7-server-extras-rpms
 rhel-7-server-satellite-tools-${SAT_VER}-rpms
-rhel-7-server-rh-common-rpms
-rhel-7-server-supplementary-rpms
 EOF
 
 SUBSCRIPTIONS="$(mktemp)"

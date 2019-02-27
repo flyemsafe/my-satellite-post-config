@@ -1,11 +1,18 @@
+# Content view, actiavation key and repos for
+# RHV 4.2
+
+# Must change per your environment
 ORG=ACME
 ARCH="x86_64"
 LC_ENVS="Testing Production"
-CV_PRODUCT="rhvm"
-releasever="7Server"
+
+
+CV_PRODUCT="rhvm4u2"
 CV_DESCRIPTION='"Red Hat Virtualization Manager"'
 CV_TYPE="app"
 CCV_TYPE="infra"
+
+releasever="7Server"
 
 # Content view nomenclature, order is important
 if [ "$CV_TYPE" == "app" ];
