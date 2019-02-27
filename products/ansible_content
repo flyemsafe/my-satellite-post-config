@@ -16,7 +16,7 @@ RHEL_RELEASE=7
 releasever="${RHEL_RELEASE}Server"
 
 # Content view nomenclature, order is important
-if [ "$TYPE" == "app" ];
+if [ "$CV_TYPE" == "app" ];
 then
     ROLE=$(echo ${CV_PRODUCT} | tr '[:upper:]' '[:lower:]')
 else
@@ -24,7 +24,7 @@ else
 fi
 
 # CV and CCV names
-CV="cv-${TYPE}-${ROLE}"
+CV="cv-${CV_TYPE}-${ROLE}"
 
 # Repository Sets (Red Hat Product Repositories)
 create_reposets=yes
