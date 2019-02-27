@@ -11,15 +11,19 @@ source ./hammer_helper_functions
 
 # Required Variables and Functions
 enabled_products=$(mktemp)
+all_products=$(mktemp)
 ACTIVATION_KEYS=$(mktemp)
 PRODUCT_SUBS_LIST=$(mktemp)
 
 # Refresh user varaibles
 source ./${product_content}
 
-#echo ""
+org="--organization ${ORG}"
 # Create content view
-create_content_view $CV
+if [ "$create_cv" == "yes" ];
+then
+    create_content_view $CV
+fi
 
 # Get the current repos associated with the content view
 CV_REPOS_BEFORE=$(hammer --output json content-view info --name $CV --organization ACME | grep -A40 $CV | grep -B2 Label | grep ID | grep -o "[0-9]." | paste -sd "")
@@ -29,26 +33,49 @@ hammer content-view info --name $CV --organization ACME > $CV_REPOS
 # Enable products not already enabled
 if [ "$create_reposets" == "yes" ];
 then
-while IFS=, read product reposet repo release;
-do
-  # Get list of enabled products
-  echo hammer --output json repository-set list --enabled=true --product "$product" --organization $ORG|sh | awk '/Name/ {print $0}' > $enabled_products
-  grep "$reposet" $enabled_products >/dev/null
-  if [ "$?" -ne "0" ];
-  then
-      echo "enabling $product reposet: $reposet"
-      echo hammer repository-set enable --name "$reposet" --product "$product" --organization "$ORG" --basearch "$ARCH" "$release"|sh
-  fi
+    # Get list of enabled products
+    echo hammer --output json repository-set list --enabled=true $org|sh | awk -F':' '/Name/ {print $2}' > $enabled_products
+    # Get list of all products
+    echo hammer --output json repository-set list $org|sh | awk -F':' '/Name/ {print $2}' > $all_products
+    while IFS=, read reposet release;
+    do
+        #product_exist=$(grep "$reposet" $all_products)
+        #if [ "'${reposet}'" != "'${product_exist}'" ];
+        grep "$reposet" $all_products >/dev/null
+        if [ "$?" != "0" ];
+        then
+            echo "${reposet} does not exist"
+        else
+            grep "$reposet" $enabled_products >/dev/null
+            if [ "$?" != "0" ];
+            then
+                echo "enabling reposet: $reposet $release"
+                if [ "${release}A" == "A" ];
+                then
+                    echo hammer repository-set enable --name "'$reposet'" --organization "$ORG" --basearch "$ARCH"|sh
+                else
+                    echo hammer repository-set enable --name "'$reposet'" --organization "$ORG" --basearch "$ARCH" --releasever $release|sh
+                fi
+            fi
+        fi
+    done<$REPOSITORY_SETS
+fi
 
-  #echo ""
-  # Add repos to content view
-  RESULT=$(echo grep "$repo" $CV_REPOS|sh)
-  if [ "${RESULT}A" == "A" ];
-  then
-      echo -n "adding $repo to $CV..."
-      echo hammer content-view add-repository --name ${CV} --organization $ORG --product ${product} --repository ${repo}|sh
-  fi
-done<$REPOSITORY_SETS
+
+# Add repositories to content views
+if [ "$add_cv_repos" == "yes" ];
+then
+    CV_ENABLED_REPOS=$(mktemp)
+    hammer content-view info --name $CV $org | grep -A100 'Yum Repositories' | grep -B100 'Container Image Repositories' | awk -F: '/Name/ {print $2}' > $CV_ENABLED_REPOS
+    while IFS=, read repo;
+    do
+        RESULT=$(echo grep "'$repo'" $CV_ENABLED_REPOS|sh)
+        if [ "${RESULT}A" == "A" ];
+        then
+            echo -n "adding $repo to $CV..."
+            echo hammer content-view add-repository --name ${CV} $org --repository "'${repo}'"|sh
+        fi
+    done<$CV_REPOS_TO_ENABLE
 fi
 
 # composite content views
@@ -63,18 +90,18 @@ then
     CV_IDS=$(echo $result | sed -e "s/ /,/g")
 
     CV_LIST=$(mktemp)
-    hammer content-view list --organization $ORG > $CV_LIST
+    hammer content-view list $org > $CV_LIST
     
     if grep $CCV $CV_LIST >/dev/null;
     then
         echo "updating content view $CCV"
         echo hammer content-view update --name "$CCV" \
-           --organization $ORG --component-ids $CV_IDS|sh
+           $org --component-ids $CV_IDS|sh
     else
         echo "creating compositive cv $CCV"
         echo hammer content-view create --name "$CCV" \
             --composite --description "'CCV Role for $PRODUCT'" \
-            --organization $ORG --component-ids $CV_IDS|sh
+            $org --component-ids $CV_IDS|sh
     fi
 
     # populate content view
@@ -83,7 +110,12 @@ then
     # create activation keys
     TYPE=$CCV_TYPE
     create_activation_keys $CCV
-else
+fi
+
+
+# Publish promote content view
+if [ "$publish_promote" == "yes" ];
+then
     # populate content view
     promote_content_view $CV
     # create activation keys

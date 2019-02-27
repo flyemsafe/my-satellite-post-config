@@ -6,6 +6,10 @@ This repo contains some bash scripting wrapper around the `hammer` command to cr
 
 Allot of this is based on the [10 Steps to Build an SOE: How Red Hat Satellite 6 Supports Setting up a Standard Operating Environment](https://access.redhat.com/articles/1585273).
 
+## Recent Updates
+
+- rhel7_content should work as expected when executed as `populate_satellite.sh rhel7_content` 
+
 ## Usage
 
 For now, make sure all the content views are created before you create products that are composite views. At some point I will update the script to do this in one shot.

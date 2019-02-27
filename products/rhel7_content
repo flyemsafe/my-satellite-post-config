@@ -1,0 +1,84 @@
+# RHEL content view, activation key and repos required
+# for most products.
+
+# Must change per your environment
+ORG=ACME
+ARCH="x86_64"
+LC_ENVS="Testing Production"
+SAT_VER="6.4"
+
+CV_PRODUCT="rhel"
+CV_DESCRIPTION='"RHEL Server 7 Core Build Content View"'
+CV_TYPE="os"
+
+# Change if not RHEL7
+RHEL_RELEASE=7
+releasever="${RHEL_RELEASE}Server"
+
+# Content view nomenclature, order is important
+# This constructs the CV and CCV names
+if [ "$CV_TYPE" != "os" ];
+then
+    ROLE=$(echo ${CV_PRODUCT} | tr '[:upper:]' '[:lower:]')
+else
+    ROLE=$(echo ${CV_PRODUCT}-${RHEL_RELEASE}srv-${ARCH} | tr '[:upper:]' '[:lower:]')
+fi
+
+# CV and CCV names
+CV="cv-${CV_TYPE}-${ROLE}"
+
+# Repository Sets (Red Hat Product Repositories)
+create_reposets=yes
+REPOSITORY_SETS=$(mktemp)
+cat > $REPOSITORY_SETS <<EOF
+Red Hat Enterprise Linux 7 Server (Kickstart), $releasever
+Red Hat Enterprise Linux 7 Server (RPMs), $releasever
+Red Hat Enterprise Linux 7 Server - Extras (RPMs),
+Red Hat Satellite Tools ${SAT_VER} (for RHEL 7 Server) (RPMs),
+Red Hat Enterprise Linux 7 Server - RH Common (RPMs), $releasever
+Red Hat Enterprise Linux 7 Server - Supplementary (RPMs), $releasever
+Red Hat Enterprise Linux 7 Server - Optional (RPMs), $releasever
+EOF
+
+# Create content view
+create_cv=yes
+
+# should this be a composit content view
+# if yes, make sure to change composite_cv with the correct CVs
+create_ccv=no
+composite_cv='cv-os-rhel-7server cv-app-rhv'
+
+# Add repositories to content views 
+add_cv_repos=yes
+CV_REPOS_TO_ENABLE=$(mktemp)
+cat > $CV_REPOS_TO_ENABLE <<EOF
+Red Hat Enterprise Linux 7 Server Kickstart x86_64 7Server
+Red Hat Enterprise Linux 7 Server RPMs x86_64 7Server
+Red Hat Enterprise Linux 7 Server - Extras RPMs x86_64
+Red Hat Satellite Tools ${SAT_VER} for RHEL 7 Server RPMs x86_64
+Red Hat Enterprise Linux 7 Server - RH Common RPMs x86_64 7Server
+Red Hat Enterprise Linux 7 Server - Supplementary RPMs x86_64 7Server
+Red Hat Enterprise Linux 7 Server - Optional RPMs x86_64 7Server
+EOF
+
+# Should we publish and promote CV
+# yes - publish if changes to CV
+# force = always publish
+publish_promote=yes
+
+
+# should activationkeys be created
+create_activationkey=yes
+ACTKEY_REPOS="$(mktemp)"
+cat > $ACTKEY_REPOS << EOF
+rhel-7-server-rpms
+rhel-7-server-extras-rpms
+rhel-7-server-satellite-tools-${SAT_VER}-rpms
+rhel-7-server-rh-common-rpms
+rhel-7-server-supplementary-rpms
+EOF
+
+SUBSCRIPTIONS="$(mktemp)"
+cat > $SUBSCRIPTIONS <<EOF
+Red Hat Enterprise Linux Server with Smart Management; 100
+EOF
