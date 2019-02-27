@@ -8,7 +8,9 @@ Allot of this is based on the [10 Steps to Build an SOE: How Red Hat Satellite 6
 
 ## Recent Updates
 
-- rhel7_content should work as expected when executed as `populate_satellite.sh rhel7_content` 
+- rhel7_content should work as expected when executed as `populate_satellite.sh rhel7_content
+- ansible_content: creates a CV for Ansible Engine, no actiavation keys 
+- rhv4u2_content: creates a content for with all RHV repo sets
 
 ## Usage
 
