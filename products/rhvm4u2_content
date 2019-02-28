@@ -1,5 +1,5 @@
 # Content view, actiavation key and repos for
-# RHV 4.2
+# RHVM 4.2
 
 # Must change per your environment
 ORG=ACME
@@ -12,7 +12,9 @@ CV_DESCRIPTION='"Red Hat Virtualization Manager"'
 CV_TYPE="app"
 CCV_TYPE="infra"
 
-releasever="7Server"
+# Change if not RHEL7
+RHEL_RELEASE=7
+releasever="${RHEL_RELEASE}Server"
 
 # Content view nomenclature, order is important
 if [ "$CV_TYPE" == "app" ];
@@ -21,8 +23,30 @@ then
 else
     ROLE=$(echo ${CV_PRODUCT}-${releasever}-${ARCH} | tr '[:upper:]' '[:lower:]')
 fi
+
+# CV and CCV names
 CV="cv-${CV_TYPE}-${ROLE}"
 CCV="ccv-${CCV_TYPE}-${CV_PRODUCT}"
+
+# Repository Sets (Red Hat Product Repositories)
+create_reposets=no
+REPOSITORY_SETS=$(mktemp)
+cat > $REPOSITORY_SETS <<EOF
+EOF
+
+# Create content view
+create_cv=no
+
+# should this be a composit content view
+# if yes, make sure to change composite_cv with the correct CVs
+create_ccv=yes
+composite_cv='cv-os-rhel-7srv-x86_64 cv-app-ansible cv-app-rhv4u2 cv-app-eap'
+
+# Add repositories to content views 
+add_cv_repos=no
+CV_REPOS_TO_ENABLE=$(mktemp)
+cat > $CV_REPOS_TO_ENABLE <<EOF
+EOF
 
 # Should we publish and promote CV
 # yes - publish if changes to CV
@@ -31,13 +55,6 @@ publish_promote=yes
 
 # should activationkeys be created
 create_activationkey=yes
-
-# should this be a composit content view
-create_ccv=yes
-composite_cv='cv-os-rhel-7server cv-virt-rhv4u2 cv-app-ansible cv-app-eap'
-
-create_reposets=no
-
 ACTKEY_REPOS="$(mktemp)"
 cat > $ACTKEY_REPOS << EOF
 rhel-7-server-rpms
@@ -53,4 +70,3 @@ cat > $SUBSCRIPTIONS <<EOF
 Red Hat Enterprise Linux Server with Smart Management, Premium (Physical or Virtual Nodes; 100
 Red Hat Virtualization Manager; 50
 EOF
-

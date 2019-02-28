@@ -2,6 +2,14 @@
 
 These are the configuration files use to setup a Red Hat product content or composite content view.
 
+## Recent Updates
+
+- rhel7_content should work as expected when executed as `populate_satellite.sh rhel7_content
+- ansible_content: creates a CV for Ansible Engine, no actiavation keys
+- rhv4u2_content: creates a content for with all RHV repo sets
+- rhvm4u2 - creates a compositive content view with activaiton keys and subscriptions for RHVM
+  - Requires: rhel7_content, ansible_content, eap_content, rhv4u2_content
+
 ## Explanation
 
 

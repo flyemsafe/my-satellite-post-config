@@ -151,7 +151,6 @@ create_activation_keys () {
         hammer --csv --csv-separator '#' subscription list --per-page 9999 --organization \
                ${ORG} > $PRODUCT_SUBS_LIST
 
-
         # Get the list of all activation keys
         hammer --output json activation-key list --organization "$ORG"| \
                awk '/Name/ {print $0}' > $ACTIVATION_KEYS
@@ -165,11 +164,11 @@ create_activation_keys () {
             then
                 ACT_KEY="act-${LC_ENV_LOWER}-${TYPE}-${ROLE}"
             else
-                ACT_KEY="act-${LC_ENV_LOWER}-${TYPE}-${ROLE}-${ARCH}"
+                ACT_KEY="act-${LC_ENV_LOWER}-${TYPE}-${ROLE}"
+                #ACT_KEY="act-${LC_ENV_LOWER}-${TYPE}-${ROLE}-${ARCH}"
             fi
 
             # Create activation key if it does not exist
-            #grep act-testing-os-rhel-7srv-x86_64-x86_64 /tmp/tmp.02KCVhl2xu | awk -F'"' '{print $4}'
             grep "$ACT_KEY" $ACTIVATION_KEYS >/dev/null
             if [ "$?" -ne "0" ];
             then
@@ -202,19 +201,19 @@ create_activation_keys () {
 
             # Get repos enabled for this activation key
             PRODUCT_CONTENT=$(mktemp)
-            hammer --no-headers --output csv activation-key product-content --name $ACT_KEY --organization ACME > $PRODUCT_CONTENT
+            hammer --no-headers --output csv activation-key product-content --name $ACT_KEY --organization $ORG > $PRODUCT_CONTENT
 
             # Ensure these repos are enabled
             while read repo;
             do
-                RESULT=$(grep $repo $PRODUCT_CONTENT | awk -F',' '{print $4}')
-                if [ "${RESULT}A" != "trueA" ];
+                RESULT=$(grep ",$repo" $PRODUCT_CONTENT | awk -F',' '{print $5}')
+                RESULTU=$(grep ",$repo" $PRODUCT_CONTENT | awk -F',' '{print $4}')
+                if [ "${RESULT}A" != "enabled:1A" ] && [ "${RESULTU}A" != "trueA" ]
                 then
                     echo -n "adding $repo to $ACT_KEY..."
                     echo hammer activation-key content-override --id $ACT_KEY_ID --organization "$ORG" --content-label "'${repo}'" --value 1|sh
                 fi
             done < $ACTKEY_REPOS
-         
         done
     fi
 }

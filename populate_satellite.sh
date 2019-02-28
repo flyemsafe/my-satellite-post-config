@@ -23,12 +23,12 @@ org="--organization ${ORG}"
 if [ "$create_cv" == "yes" ];
 then
     create_content_view $CV
+    # Get the current repos associated with the content view
+    CV_REPOS_BEFORE=$(hammer --output json content-view info --name $CV --organization ACME | grep -A40 $CV | grep -B2 Label | grep ID | grep -o "[0-9]." | paste -sd "")
+    CV_REPOS=$(mktemp)
+    hammer content-view info --name $CV --organization ACME > $CV_REPOS
 fi
 
-# Get the current repos associated with the content view
-CV_REPOS_BEFORE=$(hammer --output json content-view info --name $CV --organization ACME | grep -A40 $CV | grep -B2 Label | grep ID | grep -o "[0-9]." | paste -sd "")
-CV_REPOS=$(mktemp)
-hammer content-view info --name $CV --organization ACME > $CV_REPOS
 
 # Enable products not already enabled
 if [ "$create_reposets" == "yes" ];
@@ -84,21 +84,30 @@ then
     # populate content view
     #promote_content_view $CV
     # Get the current repos associated with the content view
-    CV_REPOS_BEFORE=$(hammer --output json content-view info --name $CV --organization ACME | \
-                    grep -A40 $CV | grep -B2 Label | grep ID | grep -o "[0-9]." | paste -sd "")
+    CV_REPOS_BEFORE=$(hammer --output json content-view info --name $CCV --organization ACME | \
+                    grep -A40 $CCV | grep -B2 Label | grep ID | grep -o "[0-9]." | paste -sd "")
     result=$(for cv in $(echo $composite_cv); do get_latest_version $cv; done)
     CV_IDS=$(echo $result | sed -e "s/ /,/g")
 
     CV_LIST=$(mktemp)
-    hammer content-view list $org > $CV_LIST
-    
-    if grep $CCV $CV_LIST >/dev/null;
+    hammer --no-headers --output csv content-view list --composite=true $org | awk -F',' '{print $2}' > $CV_LIST
+
+    CCV_COMPONENTS=$(hammer content-view info --name ccv-infra-rhvm4u2 $org | grep -A100 Components | grep -B100 'Activation Keys' | awk -F: '/ID/ {print $2}')
+   
+    RESULT=$(grep $CCV $CV_LIST)
+    if [ "${RESULT}A" == "${CCV}A" ];
     then
-        echo "updating content view $CCV"
-        echo hammer content-view update --name "$CCV" \
-           $org --component-ids $CV_IDS|sh
+        for id in $(echo $result)
+        do
+            RESULT=$(echo $CCV_COMPONENTS | grep -o $id)
+            if [ "${RESULT}A" == "A" ];
+            then
+                echo "updating CCV $CCV"
+                echo hammer content-view update --name "$CCV" $org --component-ids $CV_IDS|sh
+            fi
+        done
     else
-        echo "creating compositive cv $CCV"
+        echo "creating CCV $CCV"
         echo hammer content-view create --name "$CCV" \
             --composite --description "'CCV Role for $PRODUCT'" \
             $org --component-ids $CV_IDS|sh
@@ -111,7 +120,6 @@ then
     TYPE=$CCV_TYPE
     create_activation_keys $CCV
 fi
-
 
 # Publish promote content view
 if [ "$publish_promote" == "yes" ];
