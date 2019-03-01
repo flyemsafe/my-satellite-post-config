@@ -1,0 +1,77 @@
+# Ansible Engine content view, actication key and repos
+
+# Must change per your environment
+ORG=ACME
+ARCH="x86_64"
+LC_ENVS="Testing Production"
+
+# Content view nomenclature
+CV_PRODUCT="rhv4u2"
+CV_DESCRIPTION='"Red Hat Virtualization 4.2"'
+CV_TYPE="app"
+
+# Change if not RHEL7
+RHEL_RELEASE=7
+releasever="${RHEL_RELEASE}Server"
+
+# Content view nomenclature, order is important
+if [ "$CV_TYPE" == "app" ];
+then
+    ROLE=$(echo ${CV_PRODUCT} | tr '[:upper:]' '[:lower:]')
+else
+    ROLE=$(echo ${CV_PRODUCT}-${releasever} | tr '[:upper:]' '[:lower:]')
+fi
+
+# CV and CCV names
+CV="cv-${CV_TYPE}-${ROLE}"
+
+# Repository Sets (Red Hat Product Repositories)
+create_reposets=yes
+REPOSITORY_SETS=$(mktemp)
+cat > $REPOSITORY_SETS <<EOF
+Red Hat Virtualization Manager v4.2 (RHEL 7 Server) (RPMs)
+Red Hat Virtualization Manager 4 Tools (RHEL 7 Server) (RPMs)
+Red Hat Virtualization Host 7 (RPMs)
+Red Hat Virtualization 4 Management Agents for RHEL 7 (RPMs), $releasever
+Red Hat Enterprise Virtualization Management Agents for RHEL 7 (RPMs), $releasever
+Red Hat Virtualization 4 Tools (RHEL 7 Server) (RPMs)
+Red Hat Virtualization Host 7 Build (RPMs)
+Red Hat Virtualization Guest Agent (Containers) for RHEL 7 Server Multiarch
+Red Hat Enterprise Virtualization Hypervisor 7 (RPMs), $releasever
+EOF
+
+# Create content view
+create_cv=yes
+
+# should this be a composit content view
+# if yes, make sure to change composite_cv with the correct CVs
+create_ccv=no
+composite_cv=''
+
+# Add repositories to content views 
+add_cv_repos=yes
+CV_REPOS_TO_ENABLE=$(mktemp)
+cat > $CV_REPOS_TO_ENABLE <<EOF
+Red Hat Virtualization Manager 4 Tools RHEL 7 Server RPMs x86_64
+Red Hat Virtualization Manager v4.2 RHEL 7 Server RPMs x86_64
+Red Hat Virtualization Host 7 RPMs x86_64
+Red Hat Virtualization 4 Management Agents for RHEL 7 RPMs x86_64 7Server
+Red Hat Enterprise Virtualization Management Agents for RHEL 7 RPMs x86_64 7Server
+Red Hat Virtualization 4 Tools RHEL 7 Server RPMs x86_64
+EOF
+
+# Should we publish and promote CV
+# yes - publish if changes to CV
+# force = always publish
+publish_promote=yes
+
+
+# should activationkeys be created
+create_activationkey=no
+ACTKEY_REPOS="$(mktemp)"
+cat > $ACTKEY_REPOS << EOF
+EOF
+
+SUBSCRIPTIONS="$(mktemp)"
+cat > $SUBSCRIPTIONS <<EOF
+EOF
